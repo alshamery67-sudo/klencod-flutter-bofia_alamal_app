@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دفتر الآجل الذكي - بوفية الأمل</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-black text-amber-400">دفتر الآجل الذكي</h1>
+                <p class="text-sm font-bold text-emerald-400">بوفية الأمل | 770928719</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="openSettings()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-2 rounded-lg font-bold transition">⚙️ إعدادات الذكاء الاصطناعي</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto p-4 space-y-6">
+        <!-- Quick Stats -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow">
+                <p class="text-xs text-slate-400">إجمالي الديون العامة</p>
+                <h3 id="totalDebt" class="text-2xl font-black text-rose-400 mt-1">0 ر.ي</h3>
+            </div>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow">
+                <p class="text-xs text-slate-400">عدد العملاء</p>
+                <h3 id="totalClients" class="text-2xl font-black text-cyan-400 mt-1">0</h3>
+            </div>
+        </div>
+
+        <!-- AI OCR Scanner Section -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow space-y-3">
+            <h2 class="text-base font-bold text-amber-300 flex items-center gap-2">📷 مسح كشف الدفتر الورقي (ذكاء اصطناعي)</h2>
+            <p class="text-xs text-slate-400">قم بتصوير صفحة الدفتر أو رفع الصورة لاستخراج الحسابات تلقائياً.</p>
+            <input type="file" id="receiptInput" accept="image/*" class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer">
+            <button onclick="processReceipt()" id="processBtn" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-lg transition text-sm">تحليل الكشف واستخراج الحسابات</button>
+        </div>
+
+        <!-- Manual Entry Form -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow space-y-3">
+            <h2 class="text-base font-bold text-cyan-300">➕ إضافة حركة جديدة يدوياً</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input type="text" id="clientName" placeholder="اسم العميل" class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-sm focus:outline-none focus:border-cyan-500">
+                <select id="transType" class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-sm focus:outline-none focus:border-cyan-500">
+                    <option value="debt">سحب (دين جديد)</option>
+                    <option value="payment">واصل (تسديد)</option>
+                </select>
+                <input type="number" id="transAmount" placeholder="المبلغ (ر.ي)" class="bg-slate-900 border border-slate-700 p-2 rounded-lg text-sm focus:outline-none focus:border-cyan-500">
+            </div>
+            <button onclick="addTransaction()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 rounded-lg transition text-sm">حفظ الحركة</button>
+        </div>
+
+        <!-- Clients List Table -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 shadow overflow-hidden">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+                <h2 class="text-base font-bold text-slate-200">📋 حسابات عملاء بوفية الأمل</h2>
+                <input type="text" id="searchClient" oninput="renderClients()" placeholder="بحث عن عميل..." class="bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-lg text-xs focus:outline-none">
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-right text-sm">
+                    <thead class="bg-slate-900 text-slate-400 text-xs">
+                        <tr>
+                            <th class="p-3">اسم العميل</th>
+                            <th class="p-3">الإجمالي المتبقي</th>
+                            <th class="p-3 text-center">الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clientsTableBody" class="divide-y divide-slate-700"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Backup & PDF Section -->
+        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow space-y-3">
+            <h2 class="text-base font-bold text-emerald-300">💾 النسخ الاحتياطي وتصدير التقارير</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button onclick="exportPDF()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition text-sm flex items-center justify-center gap-2">📄 تنزيل تقارير الحسابات PDF</button>
+                <button onclick="exportJSON()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 rounded-lg transition text-sm flex items-center justify-center gap-2">📥 حفظ نسخة احتياطية (JSON)</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Client Details Modal -->
+    <div id="clientModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 w-full max-w-lg rounded-2xl border border-slate-700 p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+                <h3 id="modalTitle" class="text-lg font-bold text-amber-400">كشف حساب العميل</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+            <div id="modalBody" class="space-y-3"></div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="shareWhatsApp()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2 rounded-lg font-bold text-sm">إرسال واتساب</button>
+                <button onclick="editClientNamePrompt()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-bold text-sm">تعديل الاسم</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-slate-800 w-full max-w-md rounded-2xl border border-slate-700 p-5 space-y-4">
+            <h3 class="text-lg font-bold text-amber-400">إعدادات مفتاح الذكاء الاصطناعي</h3>
+            <p class="text-xs text-slate-400">أدخل مفتاح Gemini API الخاص بك لتفعيل مسح الكشوفات الورقية بالكاميرا.</p>
+            <input type="password" id="apiKeyInput" placeholder="أدخل مفتاح API هنا..." class="w-full bg-slate-900 border border-slate-700 p-2.5 rounded-lg text-sm">
+            <div class="flex justify-end gap-2">
+                <button onclick="closeSettings()" class="bg-slate-700 px-4 py-2 rounded-lg text-sm">إلغاء</button>
+                <button onclick="saveApiKey()" class="bg-amber-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('bofia_debts')) || {};
+        let currentClient = null;
+
+        function getFormattedDayAndDate() {
+            let now = new Date();
+            let dayName = now.toLocaleDateString('ar-YE', { weekday: 'long' });
+            let dateOnly = now.toLocaleDateString('ar-YE');
+            return dayName + ' ' + dateOnly;
+        }
+
+        function saveData() {
+            localStorage.setItem('bofia_debts', JSON.stringify(db));
+            renderClients();
+        }
+
+        function addTransaction() {
+            let name = document.getElementById('clientName').value.trim();
+            let type = document.getElementById('transType').value;
+            let amount = parseFloat(document.getElementById('transAmount').value);
+
+            if (!name || isNaN(amount) || amount <= 0) {
+                alert('الرجاء إدخال اسم العميل ومبلغ صحيح.');
+                return;
+            }
+
+            if (!db[name]) db[name] = [];
+
+            db[name].push({
+                id: Date.now(),
+                date: getFormattedDayAndDate(),
+                type: type,
+                amount: amount
+            });
+
+            document.getElementById('clientName').value = '';
+            document.getElementById('transAmount').value = '';
+            saveData();
+            alert('تمت إضافة الحركة بنجاح.');
+        }
+
+        function renderClients() {
+            let tbody = document.getElementById('clientsTableBody');
+            tbody.innerHTML = '';
+            let search = document.getElementById('searchClient').value.toLowerCase();
+            let totalGeneral = 0;
+            let count = 0;
+
+            for (let client in db) {
+                if (client.toLowerCase().includes(search)) {
+                    let balance = calculateBalance(db[client]);
+                    totalGeneral += balance;
+                    count++;
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-750/50 transition">
+                            <td class="p-3 font-bold text-slate-200">${client}</td>
+                            <td class="p-3 font-black ${balance > 0 ? 'text-rose-400' : 'text-emerald-400'}">${balance} ر.ي</td>
+                            <td class="p-3 text-center space-x-1 space-x-reverse">
+                                <button onclick="openClientModal('${client}')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-xs">التفاصيل</button>
+                                <button onclick="deleteClient('${client}')" class="bg-rose-900/40 hover:bg-rose-900 text-rose-300 px-2 py-1 rounded text-xs">حذف</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+
+            document.getElementById('totalDebt').innerText = totalGeneral.toLocaleString() + ' ر.ي';
+            document.getElementById('totalClients').innerText = count;
+        }
+
+        function calculateBalance(transactions) {
+            let bal = 0;
+            transactions.forEach(t => {
+                if (t.type === 'debt') bal += t.amount;
+                else bal -= t.amount;
+            });
+            return bal;
+        }
+
+        function openClientModal(client) {
+            currentClient = client;
+            document.getElementById('modalTitle').innerText = 'كشف حساب: ' + client + ' (بوفية الأمل)';
+            let body = document.getElementById('modalBody');
+            body.innerHTML = '';
+
+            let list = db[client];
+            let runningBal = 0;
+
+            if (list.length === 0) {
+                body.innerHTML = '<p class="text-slate-400 text-center py-4">لا توجد حركات مسجلة.</p>';
+            } else {
+                let html = '<div class="space-y-2">';
+                list.forEach((t) => {
+                    if (t.type === 'debt') runningBal += t.amount;
+                    else runningBal -= t.amount;
+
+                    html += `
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
+                            <div>
+                                <span class="text-slate-400 block">${t.date}</span>
+                                <span class="font-bold ${t.type === 'debt' ? 'text-rose-400' : 'text-emerald-400'}">
+                                    ${t.type === 'debt' ? 'سحب: ' : 'واصل: '} ${t.amount} ر.ي
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-300 font-bold">المتبقي: ${runningBal} ر.ي</span>
+                                <button onclick="deleteTrans('${client}', ${t.id})" class="text-rose-400 hover:text-rose-300">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                body.innerHTML = html;
+            }
+
+            document.getElementById('clientModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('clientModal').classList.add('hidden');
+            currentClient = null;
+        }
+
+        function deleteTrans(client, id) {
+            if (confirm('هل تريد حذف هذه الحركة؟')) {
+                db[client] = db[client].filter(t => t.id !== id);
+                if (db[client].length === 0) delete db[client];
+                saveData();
+                if (currentClient) openClientModal(currentClient);
+            }
+        }
+
+        function deleteClient(client) {
+            if (confirm(`هل أنت متأكد من حذف حساب العميل (${client}) نهائياً؟`)) {
+                delete db[client];
+                saveData();
+            }
+        }
+
+        function editClientNamePrompt() {
+            let newName = prompt('أدخل الاسم الجديد للعميل:', currentClient);
+            if (newName && newName.trim() !== '' && newName !== currentClient) {
+                db[newName.trim()] = db[currentClient];
+                delete db[currentClient];
+                currentClient = newName.trim();
+                saveData();
+                openClientModal(currentClient);
+            }
+        }
+
+        function shareWhatsApp() {
+            if (!currentClient || !db[currentClient]) return;
+            let list = db[currentClient];
+            let balance = calculateBalance(list);
+            let text = `*بوفية الأمل - كشف حساب العميل*\nالاسم: ${currentClient}\nرقم التواصل: 770928719\n------------------\n`;
+            list.forEach(t => {
+                text += `${t.date} | ${t.type === 'debt' ? 'سحب' : 'واصل'}: ${t.amount} ر.ي\n`;
+            });
+            text += `------------------\n*صافي المبلغ المتبقي: ${balance} ر.ي*`;
+            window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`);
+        }
+
+        function openSettings() {
+            document.getElementById('apiKeyInput').value = localStorage.getItem('gemini_api_key') || '';
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            let key = document.getElementById('apiKeyInput').value.trim();
+            localStorage.setItem('gemini_api_key', key);
+            alert('تم حفظ مفتاح الذكاء الاصطناعي بنجاح.');
+            closeSettings();
+        }
+
+        async function processReceipt() {
+            let fileInput = document.getElementById('receiptInput');
+            let apiKey = localStorage.getItem('gemini_api_key');
+            
+            if (!apiKey) {
+                alert('الرجاء إدخال مفتاح الذكاء الاصطناعي (Gemini API Key) من قائمة الإعدادات أولاً.');
+                openSettings();
+                return;
+            }
+
+            if (fileInput.files.length === 0) {
+                alert('الرجاء اختيار صورة الكشف الورقي أولاً.');
+                return;
+            }
+
+            let file = fileInput.files[0];
+            let reader = new FileReader();
+
+            reader.onload = async function() {
+                let base64Data = reader.result.split(',')[1];
+                let btn = document.getElementById('processBtn');
+                btn.innerText = 'جاري تحليل الكشف بالذكاء الاصطناعي...';
+                btn.disabled = true;
+
+                try {
+                    let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [
+                                    { text: "اقرأ صورة كشف الديون المكتوبة بخط اليد بدقة واستخرج أسماء الأشخاص والمبالغ. افترض أن كل حركة سحب (debt) ما لم يكتب بجانبها واصل أو تسديد فتعتبر (payment). رد بصيغة JSON فقط كالتالي بدون أي نص إضافي أو علامات markdown: [{"name": "اسم العميل", "type": "debt", "amount": رقم}]" },
+                                    {
+                                        inline_data: {
+                                            mime_type: file.type || "image/jpeg",
+                                            data: base64Data
+                                        }
+                                    }
+                                ]
+                            }]
+                        })
+                    });
+
+                    let data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.error.message || 'خطأ من الخادم');
+                    }
+
+                    let textResult = data.candidates[0].content.parts[0].text;
+                    let cleanJson = textResult.replace(/```json/g, '').replace(/```/g, '').trim();
+                    let items = JSON.parse(cleanJson);
+
+                    let dateStr = getFormattedDayAndDate();
+
+                    items.forEach(item => {
+                        let name = item.name;
+                        if (!db[name]) db[name] = [];
+                        db[name].push({
+                            id: Date.now() + Math.random(),
+                            date: dateStr,
+                            type: item.type === 'payment' ? 'payment' : 'debt',
+                            amount: parseFloat(item.amount) || 0
+                        });
+                    });
+
+                    saveData();
+                    alert('تم استخراج الحركات وإضافتها بنجاح من الصورة!');
+                } catch (e) {
+                    console.error(e);
+                    alert('حدث خطأ أثناء تحليل الصورة. تأكد من صحة مفتاح API واتصال الإنترنت.');
+                } finally {
+                    btn.innerText = 'تحليل الكشف واستخراج الحسابات';
+                    btn.disabled = false;
+                    fileInput.value = '';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function exportJSON() {
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            let dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "bofia_alamal_backup.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function exportPDF() {
+            const { jsPDF } = window.jspdf;
+            let doc = new jsPDF();
+            doc.setFont("Helvetica", "bold");
+            doc.text("Bofia Al-Amal - Debt Ledger Report", 105, 15, { align: "center" });
+            
+            let y = 30;
+            let totalGeneral = 0;
+
+            for (let client in db) {
+                let balance = calculateBalance(db[client]);
+                totalGeneral += balance;
+                doc.text(`Client: ${client} | Balance: ${balance} RY`, 15, y);
+                y += 10;
+                if (y > 270) { doc.addPage(); y = 20; }
+            }
+
+            doc.text(`Total General Debt: ${totalGeneral} RY`, 15, y + 10);
+            doc.save("bofia_alamal_report.pdf");
+        }
+
+        renderClients();
+    </script>
+</body>
+</html>
